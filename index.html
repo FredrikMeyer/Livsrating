@@ -71,6 +71,17 @@
       border-radius: 10px;
       font-size: 16px;
       background: #fdfdff;
+      color: var(--text);
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(20%) brightness(50%) sepia(10%) saturate(400%);
+    }
+
+    input[type="date"]:focus,
+    input[type="number"]:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
     }
 
     input[type="number"]::-webkit-inner-spin-button,
