@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Ratings</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f7f7fb;
+      --surface: #ffffff;
+      --border: #d4d7de;
+      --text: #1d1f2a;
+      --accent: #4a6cf7;
+      --muted: #606578;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at 10% 20%, #e9edff, transparent 35%),
+                  radial-gradient(circle at 80% 0%, #ffe8f6, transparent 30%),
+                  var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      width: min(480px, 100%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 16px 60px rgba(0, 0, 0, 0.08);
+      padding: 24px;
+      backdrop-filter: blur(6px);
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      font-size: 26px;
+      letter-spacing: -0.02em;
+    }
+
+    p {
+      margin: 0 0 16px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .field {
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    input[type="date"],
+    input[type="number"] {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 16px;
+      background: #fdfdff;
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      height: 28px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 1px solid transparent;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 10px 30px rgba(74, 108, 247, 0.35);
+    }
+
+    button.secondary {
+      background: #f5f6fb;
+      color: var(--text);
+      border-color: var(--border);
+    }
+
+    button:active { transform: translateY(1px); }
+
+    .status {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 14px;
+      min-height: 20px;
+    }
+
+    .small-note {
+      margin-top: 20px;
+      font-size: 13px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: #eef1ff;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--accent);
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="pill" aria-hidden="true">Rate the day</div>
+    <h1>How was your day?</h1>
+    <p>Select a date and give it a score from 1 (rough) to 5 (amazing). Everything is stored locally on this device.</p>
+
+    <div class="field">
+      <label for="date">Date</label>
+      <input type="date" id="date" name="date" required>
+    </div>
+
+    <div class="field">
+      <label for="rating">Rating (1–5)</label>
+      <input type="number" id="rating" name="rating" min="1" max="5" step="1" placeholder="Enter a number" required>
+    </div>
+
+    <div class="actions">
+      <button class="primary" id="save">Save rating</button>
+      <button class="secondary" id="export">Export CSV</button>
+    </div>
+
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+
+    <div class="small-note">Data lives in your browser using localStorage. Export a CSV if you want a backup.</div>
+  </main>
+
+  <script>
+    const STORAGE_KEY = 'daily-ratings';
+    const dateInput = document.getElementById('date');
+    const ratingInput = document.getElementById('rating');
+    const statusEl = document.getElementById('status');
+
+    const today = new Date().toISOString().slice(0, 10);
+    dateInput.value = today;
+
+    function loadRatings() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch (error) {
+        console.error('Unable to read localStorage', error);
+        return {};
+      }
+    }
+
+    function saveRatings(ratings) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(ratings));
+    }
+
+    function displayStatus(message) {
+      statusEl.textContent = message;
+    }
+
+    function loadExistingRating(date) {
+      const ratings = loadRatings();
+      const value = ratings[date];
+      ratingInput.value = value ?? '';
+      if (value) {
+        displayStatus(`You rated this day ${value}/5.`);
+      } else {
+        displayStatus('No rating saved for this date yet.');
+      }
+    }
+
+    function handleSave() {
+      const selectedDate = dateInput.value;
+      const value = Number(ratingInput.value);
+
+      if (!selectedDate) {
+        displayStatus('Please pick a date.');
+        return;
+      }
+
+      if (!Number.isInteger(value) || value < 1 || value > 5) {
+        displayStatus('Enter a whole number between 1 and 5.');
+        return;
+      }
+
+      const ratings = loadRatings();
+      ratings[selectedDate] = value;
+      saveRatings(ratings);
+      displayStatus(`Saved ${value}/5 for ${selectedDate}.`);
+    }
+
+    function handleExport() {
+      const ratings = loadRatings();
+      const entries = Object.entries(ratings).sort(([a], [b]) => a.localeCompare(b));
+
+      if (!entries.length) {
+        displayStatus('Nothing to export yet. Add a rating first.');
+        return;
+      }
+
+      const lines = ['date,rating', ...entries.map(([date, rating]) => `${date},${rating}`)];
+      const csvContent = lines.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'daily-ratings.csv';
+      link.click();
+      URL.revokeObjectURL(url);
+      displayStatus('Exported ratings as CSV.');
+    }
+
+    dateInput.addEventListener('change', (event) => {
+      loadExistingRating(event.target.value);
+    });
+
+    document.getElementById('save').addEventListener('click', handleSave);
+    document.getElementById('export').addEventListener('click', handleExport);
+
+    loadExistingRating(today);
+  </script>
+</body>
+</html>
